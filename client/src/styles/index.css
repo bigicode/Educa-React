@@ -18,6 +18,7 @@
   --ink-900: #101b33;
   --ink-700: #42506b;
   --ink-500: #6f7b94;
+  --workspace-canvas: #f4f7fb;
   --surface-100: rgba(255, 255, 255, 0.74);
   --line-soft: rgba(8, 39, 95, 0.1);
   --shadow-soft: 0 28px 80px rgba(8, 39, 95, 0.12);
@@ -25,7 +26,7 @@
 }
 
 html {
-  background: #f7f8fb;
+  background: var(--workspace-canvas);
   overflow-x: clip;
 }
 
@@ -33,10 +34,7 @@ body {
   margin: 0;
   min-width: 320px;
   overflow-x: clip;
-  background:
-    radial-gradient(circle at 11% 8%, rgba(255, 250, 205, 0.58), transparent 18%),
-    radial-gradient(circle at 86% 12%, rgba(0, 71, 171, 0.08), transparent 22%),
-    linear-gradient(180deg, #fcfdff 0%, #f4f7fc 100%);
+  background: var(--workspace-canvas);
   color: var(--ink-900);
   font-family: var(--font-body);
   line-height: 1.5;
@@ -79,10 +77,7 @@ h6,
 }
 
 .brand-grid {
-  background-image:
-    linear-gradient(rgba(8, 39, 95, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(8, 39, 95, 0.03) 1px, transparent 1px);
-  background-size: 36px 36px;
+  background: transparent;
 }
 
 .eyebrow {
@@ -110,15 +105,15 @@ h6,
 
 .surface-card {
   border: 1px solid var(--line-soft);
-  background: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 18px 42px rgba(8, 39, 95, 0.07);
   backdrop-filter: blur(10px);
 }
 
 .surface-card-strong {
-  border: 1px solid rgba(8, 39, 95, 0.14);
-  background: linear-gradient(180deg, rgba(255, 250, 205, 0.48) 0%, rgba(255, 255, 255, 0.96) 55%);
-  box-shadow: 0 18px 42px rgba(8, 39, 95, 0.08);
+  border: 1px solid rgba(8, 39, 95, 0.1);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 18px 42px rgba(8, 39, 95, 0.07);
   backdrop-filter: blur(10px);
 }
 

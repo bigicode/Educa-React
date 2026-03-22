@@ -208,12 +208,6 @@ export function DashboardLayout() {
 
   return (
     <div className="relative min-h-screen overflow-x-clip px-4 py-4 lg:px-6 lg:py-6">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-        <div className="brand-grid absolute inset-0 opacity-24" />
-        <div className="absolute left-[-8rem] top-[-6rem] h-72 w-72 rounded-full bg-[#fffacd]/34 blur-3xl" />
-        <div className="absolute bottom-[-8rem] right-[-5rem] h-80 w-80 rounded-full bg-[#0047ab]/8 blur-3xl" />
-      </div>
-
       <div className="relative mx-auto grid max-w-[1600px] gap-4 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start">
         <DashboardSidebar
           isCollapsed={isSidebarCollapsed}
