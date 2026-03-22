@@ -1,0 +1,248 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  SCHOOL_ADMIN
+  TEACHER
+  STUDENT
+  PARENT
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  TRANSFERRED
+  GRADUATED
+  ARCHIVED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+enum AssessmentType {
+  ASSIGNMENT
+  QUIZ
+  EXAM
+  PROJECT
+}
+
+enum AssessmentStatus {
+  DRAFT
+  SCHEDULED
+  OPEN
+  CLOSED
+  PUBLISHED
+}
+
+model User {
+  id           String    @id @default(cuid())
+  firstName    String
+  lastName     String
+  email        String    @unique
+  passwordHash String
+  role         UserRole
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  student      Student?
+  teacher      Teacher?
+}
+
+model Student {
+  id              String             @id @default(cuid())
+  userId          String             @unique
+  admissionNumber String             @unique
+  dateOfBirth     DateTime?
+  guardianName    String?
+  guardianPhone   String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  enrollments     Enrollment[]
+  attendance      AttendanceRecord[]
+  grades          GradeEntry[]
+}
+
+model Teacher {
+  id                 String             @id @default(cuid())
+  userId             String             @unique
+  employeeCode       String             @unique
+  phoneNumber        String?
+  qualification      String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  homeroomClasses    SchoolClass[]
+  subjectAssignments TeacherSubject[]
+  attendanceRecords  AttendanceRecord[] @relation("AttendanceRecorder")
+  assessments        Assessment[]       @relation("AssessmentAuthor")
+}
+
+model AcademicYear {
+  id          String             @id @default(cuid())
+  name        String             @unique
+  startDate   DateTime
+  endDate     DateTime
+  isActive    Boolean            @default(false)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  terms       Term[]
+  enrollments Enrollment[]
+  attendance  AttendanceRecord[]
+  assessments Assessment[]
+}
+
+model Term {
+  id             String             @id @default(cuid())
+  academicYearId String
+  name           String
+  startDate      DateTime
+  endDate        DateTime
+  isActive       Boolean            @default(false)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  academicYear   AcademicYear       @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  attendance     AttendanceRecord[]
+  assessments    Assessment[]
+
+  @@unique([academicYearId, name])
+}
+
+model SchoolClass {
+  id                 String             @id @default(cuid())
+  name               String
+  level              String
+  section            String?
+  classTeacherId     String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  classTeacher       Teacher?           @relation(fields: [classTeacherId], references: [id])
+  enrollments        Enrollment[]
+  subjects           ClassSubject[]
+  teacherAssignments TeacherSubject[]
+  attendance         AttendanceRecord[]
+  assessments        Assessment[]
+
+  @@unique([name, section])
+}
+
+model Subject {
+  id                 String             @id @default(cuid())
+  name               String
+  code               String             @unique
+  description        String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  classMappings      ClassSubject[]
+  teacherAssignments TeacherSubject[]
+  assessments        Assessment[]
+}
+
+model ClassSubject {
+  id            String      @id @default(cuid())
+  schoolClassId String
+  subjectId     String
+  createdAt     DateTime    @default(now())
+  schoolClass   SchoolClass @relation(fields: [schoolClassId], references: [id], onDelete: Cascade)
+  subject       Subject     @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolClassId, subjectId])
+}
+
+model TeacherSubject {
+  id            String       @id @default(cuid())
+  teacherId     String
+  subjectId     String
+  schoolClassId String?
+  createdAt     DateTime     @default(now())
+  teacher       Teacher      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  subject       Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  schoolClass   SchoolClass? @relation(fields: [schoolClassId], references: [id], onDelete: SetNull)
+
+  @@unique([teacherId, subjectId, schoolClassId])
+}
+
+model Enrollment {
+  id             String           @id @default(cuid())
+  studentId      String
+  schoolClassId  String
+  academicYearId String
+  status         EnrollmentStatus @default(ACTIVE)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  student        Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  schoolClass    SchoolClass      @relation(fields: [schoolClassId], references: [id], onDelete: Cascade)
+  academicYear   AcademicYear     @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, schoolClassId, academicYearId])
+}
+
+model AttendanceRecord {
+  id             String           @id @default(cuid())
+  studentId      String
+  schoolClassId  String
+  academicYearId String
+  termId         String?
+  recordedById   String?
+  date           DateTime
+  status         AttendanceStatus @default(PRESENT)
+  remarks        String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  student        Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  schoolClass    SchoolClass      @relation(fields: [schoolClassId], references: [id], onDelete: Cascade)
+  academicYear   AcademicYear     @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  term           Term?            @relation(fields: [termId], references: [id], onDelete: SetNull)
+  recordedBy     Teacher?         @relation("AttendanceRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
+
+  @@index([schoolClassId, date])
+  @@unique([studentId, schoolClassId, date])
+}
+
+model Assessment {
+  id             String           @id @default(cuid())
+  title          String
+  type           AssessmentType
+  status         AssessmentStatus @default(DRAFT)
+  subjectId      String
+  schoolClassId  String
+  academicYearId String
+  termId         String?
+  assignedById   String?
+  totalMarks     Int              @default(100)
+  dueDate        DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  subject        Subject          @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  schoolClass    SchoolClass      @relation(fields: [schoolClassId], references: [id], onDelete: Cascade)
+  academicYear   AcademicYear     @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  term           Term?            @relation(fields: [termId], references: [id], onDelete: SetNull)
+  assignedBy     Teacher?         @relation("AssessmentAuthor", fields: [assignedById], references: [id], onDelete: SetNull)
+  grades         GradeEntry[]
+
+  @@index([schoolClassId, subjectId])
+}
+
+model GradeEntry {
+  id           String   @id @default(cuid())
+  assessmentId String
+  studentId    String
+  marks        Decimal? @db.Decimal(5, 2)
+  remarks      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  student      Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, studentId])
+}
