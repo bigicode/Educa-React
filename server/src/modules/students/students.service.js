@@ -22,6 +22,7 @@ function formatStudent(student) {
       ? {
           id: currentEnrollment.id,
           status: currentEnrollment.status,
+          academicYearId: currentEnrollment.academicYear.id,
           academicYear: currentEnrollment.academicYear.name,
           schoolClass: {
             id: currentEnrollment.schoolClass.id,
@@ -241,6 +242,183 @@ export async function createStudent(data) {
     });
 
     return createdStudent;
+  });
+
+  return formatStudent(student);
+}
+
+export async function updateStudent(studentId, data) {
+  const existingStudent = await prisma.student.findUnique({
+    where: { id: studentId },
+    include: {
+      user: true,
+      enrollments: {
+        include: {
+          schoolClass: true,
+          academicYear: true,
+        },
+        orderBy: [{ createdAt: "desc" }],
+      },
+    },
+  });
+
+  if (!existingStudent) {
+    throw new AppError("Student not found.", 404);
+  }
+
+  if (data.email !== existingStudent.user.email) {
+    const emailOwner = await prisma.user.findUnique({
+      where: { email: data.email },
+      select: { id: true },
+    });
+
+    if (emailOwner && emailOwner.id !== existingStudent.userId) {
+      throw new AppError("A user with this email already exists.", 409);
+    }
+  }
+
+  if (data.admissionNumber !== existingStudent.admissionNumber) {
+    const admissionOwner = await prisma.student.findUnique({
+      where: { admissionNumber: data.admissionNumber },
+      select: { id: true },
+    });
+
+    if (admissionOwner && admissionOwner.id !== existingStudent.id) {
+      throw new AppError("Admission number already exists.", 409);
+    }
+  }
+
+  const currentEnrollment =
+    existingStudent.enrollments.find((enrollment) => enrollment.status === "ACTIVE") ||
+    existingStudent.enrollments[0] ||
+    null;
+
+  const student = await prisma.$transaction(async (tx) => {
+    if (data.schoolClassId && data.academicYearId) {
+      const [schoolClass, academicYear] = await Promise.all([
+        tx.schoolClass.findUnique({ where: { id: data.schoolClassId }, select: { id: true } }),
+        tx.academicYear.findUnique({ where: { id: data.academicYearId }, select: { id: true } }),
+      ]);
+
+      if (!schoolClass || !academicYear) {
+        throw new AppError("Selected class or academic year does not exist.", 400);
+      }
+    }
+
+    await tx.user.update({
+      where: { id: existingStudent.userId },
+      data: {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        ...(data.enrollmentStatus
+          ? {
+              isActive: data.enrollmentStatus !== "ARCHIVED",
+            }
+          : {}),
+      },
+    });
+
+    await tx.student.update({
+      where: { id: studentId },
+      data: {
+        admissionNumber: data.admissionNumber,
+        dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
+        guardianName: data.guardianName || null,
+        guardianPhone: data.guardianPhone || null,
+      },
+    });
+
+    if (data.schoolClassId && data.academicYearId) {
+      if (currentEnrollment) {
+        await tx.enrollment.update({
+          where: { id: currentEnrollment.id },
+          data: {
+            schoolClassId: data.schoolClassId,
+            academicYearId: data.academicYearId,
+            status: data.enrollmentStatus || currentEnrollment.status,
+          },
+        });
+      } else {
+        await tx.enrollment.create({
+          data: {
+            studentId,
+            schoolClassId: data.schoolClassId,
+            academicYearId: data.academicYearId,
+            status: data.enrollmentStatus || "ACTIVE",
+          },
+        });
+      }
+    } else if (data.enrollmentStatus && currentEnrollment) {
+      await tx.enrollment.update({
+        where: { id: currentEnrollment.id },
+        data: { status: data.enrollmentStatus },
+      });
+    }
+
+    return tx.student.findUnique({
+      where: { id: studentId },
+      include: {
+        user: true,
+        enrollments: {
+          include: {
+            schoolClass: true,
+            academicYear: true,
+          },
+          orderBy: [{ createdAt: "desc" }],
+        },
+      },
+    });
+  });
+
+  return formatStudent(student);
+}
+
+export async function archiveStudent(studentId) {
+  const existingStudent = await prisma.student.findUnique({
+    where: { id: studentId },
+    include: {
+      user: true,
+      enrollments: {
+        include: {
+          schoolClass: true,
+          academicYear: true,
+        },
+        orderBy: [{ createdAt: "desc" }],
+      },
+    },
+  });
+
+  if (!existingStudent) {
+    throw new AppError("Student not found.", 404);
+  }
+
+  const student = await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: existingStudent.userId },
+      data: { isActive: false },
+    });
+
+    if (existingStudent.enrollments.length) {
+      await tx.enrollment.updateMany({
+        where: { studentId },
+        data: { status: "ARCHIVED" },
+      });
+    }
+
+    return tx.student.findUnique({
+      where: { id: studentId },
+      include: {
+        user: true,
+        enrollments: {
+          include: {
+            schoolClass: true,
+            academicYear: true,
+          },
+          orderBy: [{ createdAt: "desc" }],
+        },
+      },
+    });
   });
 
   return formatStudent(student);

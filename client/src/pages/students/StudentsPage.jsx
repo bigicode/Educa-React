@@ -4,13 +4,13 @@ import { format } from "date-fns";
 import toast from "react-hot-toast";
 import { motion, useReducedMotion } from "motion/react";
 import {
+  Archive,
   CircleAlert,
   Download,
   Eye,
   Mail,
   PencilLine,
   Phone,
-  Trash2,
   UserPlus,
   UsersRound,
 } from "lucide-react";
@@ -19,11 +19,13 @@ import { AppSelect } from "../../components/ui/AppSelect";
 import { RowActionsMenu } from "../../components/ui/RowActionsMenu";
 import { CardSkeleton, SkeletonBlock, SkeletonText, TableSkeleton } from "../../components/ui/Skeleton";
 import {
+  archiveStudent,
   createStudent,
   fetchStudentById,
   fetchStudentMeta,
   fetchStudents,
   getApiErrorMessage,
+  updateStudent,
 } from "../../features/students/api";
 import { getRevealMotion } from "../../lib/motion";
 
@@ -116,6 +118,21 @@ function getDefaultAdmissionForm(options) {
   };
 }
 
+function getDefaultEditForm(student) {
+  return {
+    firstName: student?.firstName || "",
+    lastName: student?.lastName || "",
+    email: student?.email || "",
+    admissionNumber: student?.admissionNumber || "",
+    dateOfBirth: student?.dateOfBirth ? format(new Date(student.dateOfBirth), "yyyy-MM-dd") : "",
+    guardianName: student?.guardianName || "",
+    guardianPhone: student?.guardianPhone || "",
+    schoolClassId: student?.currentEnrollment?.schoolClass?.id || "",
+    academicYearId: student?.currentEnrollment?.academicYearId || "",
+    enrollmentStatus: student?.currentEnrollment?.status || "ACTIVE",
+  };
+}
+
 function buildStudentPayload(form) {
   return {
     firstName: form.firstName.trim(),
@@ -126,6 +143,21 @@ function buildStudentPayload(form) {
     ...(form.dateOfBirth ? { dateOfBirth: new Date(`${form.dateOfBirth}T00:00:00`).toISOString() } : {}),
     ...(form.guardianName.trim() ? { guardianName: form.guardianName.trim() } : {}),
     ...(form.guardianPhone.trim() ? { guardianPhone: form.guardianPhone.trim() } : {}),
+    ...(form.schoolClassId ? { schoolClassId: form.schoolClassId } : {}),
+    ...(form.academicYearId ? { academicYearId: form.academicYearId } : {}),
+    ...(form.enrollmentStatus ? { enrollmentStatus: form.enrollmentStatus } : {}),
+  };
+}
+
+function buildStudentUpdatePayload(form) {
+  return {
+    firstName: form.firstName.trim(),
+    lastName: form.lastName.trim(),
+    email: form.email.trim(),
+    admissionNumber: form.admissionNumber.trim(),
+    dateOfBirth: form.dateOfBirth ? new Date(`${form.dateOfBirth}T00:00:00`).toISOString() : null,
+    guardianName: form.guardianName.trim() || null,
+    guardianPhone: form.guardianPhone.trim() || null,
     ...(form.schoolClassId ? { schoolClassId: form.schoolClassId } : {}),
     ...(form.academicYearId ? { academicYearId: form.academicYearId } : {}),
     ...(form.enrollmentStatus ? { enrollmentStatus: form.enrollmentStatus } : {}),
@@ -243,9 +275,12 @@ export function StudentsPage() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [classFilter, setClassFilter] = useState("ALL");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [admissionForm, setAdmissionForm] = useState(getDefaultAdmissionForm());
+  const [editForm, setEditForm] = useState(getDefaultEditForm());
+  const [archiveTarget, setArchiveTarget] = useState(null);
   const deferredSearch = useDeferredValue(search);
 
   const studentFilters = useMemo(
@@ -289,6 +324,50 @@ export function StudentsPage() {
     },
     onError: (error) => {
       toast.error(getApiErrorMessage(error, "Unable to create the student record."));
+    },
+  });
+
+  const updateStudentMutation = useMutation({
+    mutationFn: ({ studentId, payload }) => updateStudent(studentId, payload),
+    onSuccess: (response) => {
+      const updatedStudent = response.data;
+
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+
+      if (updatedStudent?.id) {
+        queryClient.invalidateQueries({ queryKey: ["students", "detail", updatedStudent.id] });
+        setSelectedStudent(updatedStudent);
+      }
+
+      toast.success(response.message || "Student updated successfully.");
+      setIsEditOpen(false);
+    },
+    onError: (error) => {
+      toast.error(getApiErrorMessage(error, "Unable to update the student record."));
+    },
+  });
+
+  const archiveStudentMutation = useMutation({
+    mutationFn: archiveStudent,
+    onSuccess: (response) => {
+      const archivedStudent = response.data;
+
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+
+      if (archivedStudent?.id) {
+        queryClient.invalidateQueries({ queryKey: ["students", "detail", archivedStudent.id] });
+      }
+
+      if (selectedStudent?.id === archivedStudent?.id) {
+        setSelectedStudent(archivedStudent);
+        setIsProfileOpen(false);
+      }
+
+      toast.success(response.message || "Student archived successfully.");
+      setArchiveTarget(null);
+    },
+    onError: (error) => {
+      toast.error(getApiErrorMessage(error, "Unable to archive the student record."));
     },
   });
 
@@ -373,9 +452,22 @@ export function StudentsPage() {
     setIsProfileOpen(true);
   }
 
+  function openEditModal(student) {
+    setSelectedStudent(student);
+    setEditForm(getDefaultEditForm(student));
+    setIsProfileOpen(false);
+    setIsEditOpen(true);
+  }
+
   function closeStudentProfile() {
     setIsProfileOpen(false);
     setSelectedStudent(null);
+  }
+
+  function closeEditModal() {
+    if (!updateStudentMutation.isPending) {
+      setIsEditOpen(false);
+    }
   }
 
   function openAdmissionModal() {
@@ -385,6 +477,13 @@ export function StudentsPage() {
 
   function updateAdmission(field, value) {
     setAdmissionForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  }
+
+  function updateEditForm(field, value) {
+    setEditForm((current) => ({
       ...current,
       [field]: value,
     }));
@@ -411,6 +510,28 @@ export function StudentsPage() {
     setSearch("");
     setStatusFilter("ALL");
     setClassFilter("ALL");
+  }
+
+  function submitStudentEdit() {
+    const requiredFields = [editForm.firstName, editForm.lastName, editForm.email, editForm.admissionNumber];
+
+    if (requiredFields.some((value) => !value.trim())) {
+      toast.error("Complete the required student profile fields before saving.");
+      return;
+    }
+
+    updateStudentMutation.mutate({
+      studentId: selectedStudent.id,
+      payload: buildStudentUpdatePayload(editForm),
+    });
+  }
+
+  function submitStudentArchive() {
+    if (!archiveTarget?.id) {
+      return;
+    }
+
+    archiveStudentMutation.mutate(archiveTarget.id);
   }
 
   if (isInitialLoading) {
@@ -665,15 +786,13 @@ export function StudentsPage() {
                             {
                               label: "Edit",
                               icon: PencilLine,
-                              onSelect: () =>
-                                toast.success(`Edit flow for ${student.fullName} can be wired next.`),
+                              onSelect: () => openEditModal(student),
                             },
                             {
-                              label: "Delete",
-                              icon: Trash2,
+                              label: "Archive",
+                              icon: Archive,
                               tone: "danger",
-                              onSelect: () =>
-                                toast.error(`Delete flow for ${student.fullName} is not connected yet.`),
+                              onSelect: () => setArchiveTarget(student),
                             },
                           ]}
                         />
@@ -751,6 +870,14 @@ export function StudentsPage() {
           <>
             <button type="button" className="secondary-button" onClick={closeStudentProfile}>
               Close
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => openEditModal(selectedStudentProfile)}
+              disabled={!selectedStudentProfile}
+            >
+              Edit student
             </button>
             <button
               type="button"
@@ -938,6 +1065,181 @@ export function StudentsPage() {
             </div>
           </div>
         ) : null}
+      </ModalShell>
+
+      <ModalShell
+        open={isEditOpen}
+        onClose={closeEditModal}
+        title="Edit student record"
+        description="Update the student profile, enrollment details, and guardian contact information."
+        footer={
+          <>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={closeEditModal}
+              disabled={updateStudentMutation.isPending}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="primary-button"
+              onClick={submitStudentEdit}
+              disabled={updateStudentMutation.isPending || !selectedStudent}
+            >
+              {updateStudentMutation.isPending ? "Saving..." : "Save changes"}
+            </button>
+          </>
+        }
+      >
+        <div className="grid gap-5 md:grid-cols-2">
+          <label className="block space-y-2">
+            <span className="text-sm font-semibold text-[var(--ink-900)]">First name</span>
+            <input
+              value={editForm.firstName}
+              onChange={(event) => updateEditForm("firstName", event.target.value)}
+              className="form-input"
+              placeholder="Neema"
+            />
+          </label>
+
+          <label className="block space-y-2">
+            <span className="text-sm font-semibold text-[var(--ink-900)]">Last name</span>
+            <input
+              value={editForm.lastName}
+              onChange={(event) => updateEditForm("lastName", event.target.value)}
+              className="form-input"
+              placeholder="Mollel"
+            />
+          </label>
+
+          <label className="block space-y-2">
+            <span className="text-sm font-semibold text-[var(--ink-900)]">Admission number</span>
+            <input
+              value={editForm.admissionNumber}
+              onChange={(event) => updateEditForm("admissionNumber", event.target.value)}
+              className="form-input"
+              placeholder="ADM-2026-001"
+            />
+          </label>
+
+          <label className="block space-y-2">
+            <span className="text-sm font-semibold text-[var(--ink-900)]">Email address</span>
+            <input
+              type="email"
+              value={editForm.email}
+              onChange={(event) => updateEditForm("email", event.target.value)}
+              className="form-input"
+              placeholder="student@educa.school"
+            />
+          </label>
+
+          <label className="block space-y-2">
+            <span className="text-sm font-semibold text-[var(--ink-900)]">Date of birth</span>
+            <input
+              type="date"
+              value={editForm.dateOfBirth}
+              onChange={(event) => updateEditForm("dateOfBirth", event.target.value)}
+              className="form-input"
+            />
+          </label>
+
+          <label className="block space-y-2">
+            <span className="text-sm font-semibold text-[var(--ink-900)]">Preferred class</span>
+            <AppSelect
+              value={editForm.schoolClassId}
+              onChange={(value) => updateEditForm("schoolClassId", value)}
+              options={preferredClassOptions}
+            />
+          </label>
+
+          <label className="block space-y-2">
+            <span className="text-sm font-semibold text-[var(--ink-900)]">Academic year</span>
+            <AppSelect
+              value={editForm.academicYearId}
+              onChange={(value) => updateEditForm("academicYearId", value)}
+              options={academicYearOptions}
+            />
+          </label>
+
+          <label className="block space-y-2">
+            <span className="text-sm font-semibold text-[var(--ink-900)]">Enrollment status</span>
+            <AppSelect
+              value={editForm.enrollmentStatus}
+              onChange={(value) => updateEditForm("enrollmentStatus", value)}
+              options={enrollmentCreateOptions}
+            />
+          </label>
+
+          <label className="block space-y-2">
+            <span className="text-sm font-semibold text-[var(--ink-900)]">Guardian name</span>
+            <input
+              value={editForm.guardianName}
+              onChange={(event) => updateEditForm("guardianName", event.target.value)}
+              className="form-input"
+              placeholder="Parent or guardian"
+            />
+          </label>
+
+          <label className="block space-y-2">
+            <span className="text-sm font-semibold text-[var(--ink-900)]">Guardian phone</span>
+            <input
+              value={editForm.guardianPhone}
+              onChange={(event) => updateEditForm("guardianPhone", event.target.value)}
+              className="form-input"
+              placeholder="+255..."
+            />
+          </label>
+        </div>
+      </ModalShell>
+
+      <ModalShell
+        open={Boolean(archiveTarget)}
+        onClose={() => {
+          if (!archiveStudentMutation.isPending) {
+            setArchiveTarget(null);
+          }
+        }}
+        title="Archive student record"
+        description="This will deactivate the student account and mark current enrollments as archived without deleting the history."
+        footer={
+          <>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => setArchiveTarget(null)}
+              disabled={archiveStudentMutation.isPending}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="primary-button"
+              onClick={submitStudentArchive}
+              disabled={archiveStudentMutation.isPending}
+            >
+              {archiveStudentMutation.isPending ? "Archiving..." : "Archive student"}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="subtle-card rounded-[24px] p-5">
+            <p className="eyebrow">Archive Confirmation</p>
+            <h3 className="mt-3 font-display text-2xl font-bold text-[var(--ink-900)]">
+              {archiveTarget?.fullName}
+            </h3>
+            <p className="mt-3 text-sm leading-7 text-[var(--ink-700)]">
+              Admission {archiveTarget?.admissionNumber} will remain on record, but the account will become inactive
+              and active enrollment tracking will stop.
+            </p>
+          </div>
+          <div className="rounded-[18px] border border-dashed border-[rgba(180,35,66,0.18)] bg-[rgba(255,235,239,0.48)] px-4 py-4 text-sm leading-7 text-[var(--ink-700)]">
+            Use this instead of a hard delete. It is safer for audit history, attendance, grades, and future record
+            recovery.
+          </div>
+        </div>
       </ModalShell>
 
       <ModalShell

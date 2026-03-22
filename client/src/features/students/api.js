@@ -29,6 +29,16 @@ export async function createStudent(payload) {
   return response.data;
 }
 
+export async function updateStudent(studentId, payload) {
+  const response = await http.patch(`/students/${studentId}`, payload);
+  return response.data;
+}
+
+export async function archiveStudent(studentId) {
+  const response = await http.patch(`/students/${studentId}/archive`);
+  return response.data;
+}
+
 export function getApiErrorMessage(error, fallbackMessage) {
   if (error?.response?.data?.message) {
     return error.response.data.message;
