@@ -10,12 +10,12 @@ import {
   Mail,
   PencilLine,
   Phone,
-  Search,
   Trash2,
   UserPlus,
   UsersRound,
 } from "lucide-react";
 import { ModalShell } from "../../components/ui/ModalShell";
+import { AppSelect } from "../../components/ui/AppSelect";
 import { RowActionsMenu } from "../../components/ui/RowActionsMenu";
 import { CardSkeleton, SkeletonBlock, SkeletonText, TableSkeleton } from "../../components/ui/Skeleton";
 import {
@@ -305,6 +305,40 @@ export function StudentsPage() {
   const classes = useMemo(() => metaQuery.data?.classes || [], [metaQuery.data]);
   const academicYears = useMemo(() => metaQuery.data?.academicYears || [], [metaQuery.data]);
   const activeAcademicYear = academicYears.find((year) => year.isActive) || academicYears[0] || null;
+  const classFilterOptions = useMemo(
+    () => [
+      { value: "ALL", label: "All classes" },
+      ...classes.map((schoolClass) => ({
+        value: schoolClass.id,
+        label: schoolClass.section ? `${schoolClass.name} ${schoolClass.section}` : schoolClass.name,
+      })),
+    ],
+    [classes],
+  );
+  const preferredClassOptions = useMemo(
+    () => [
+      { value: "", label: "No class yet" },
+      ...classes.map((schoolClass) => ({
+        value: schoolClass.id,
+        label: schoolClass.section ? `${schoolClass.name} ${schoolClass.section}` : schoolClass.name,
+      })),
+    ],
+    [classes],
+  );
+  const academicYearOptions = useMemo(
+    () => [
+      { value: "", label: "Select academic year" },
+      ...academicYears.map((year) => ({
+        value: year.id,
+        label: `${year.name}${year.id === activeAcademicYear?.id ? " (Active)" : ""}`,
+      })),
+    ],
+    [academicYears, activeAcademicYear],
+  );
+  const enrollmentCreateOptions = useMemo(
+    () => enrollmentStatusOptions.filter((option) => option.value !== "ALL"),
+    [],
+  );
 
   const summaryCards = useMemo(() => {
     const activeStudents = overviewStudents.filter(
@@ -521,49 +555,30 @@ export function StudentsPage() {
             <span className="text-sm font-semibold text-[var(--ink-900)]">
               Search student or guardian
             </span>
-            <div className="relative">
-              <Search
-                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--ink-500)]"
-                size={18}
-              />
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                className="form-input pl-11"
-                placeholder="Neema, guardian, admission no..."
-              />
-            </div>
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="form-input"
+              placeholder="Neema, guardian, admission no..."
+            />
           </label>
 
           <label className="block space-y-2">
             <span className="text-sm font-semibold text-[var(--ink-900)]">Enrollment status</span>
-            <select
+            <AppSelect
               value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-              className="form-input"
-            >
-              {enrollmentStatusOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              onChange={setStatusFilter}
+              options={enrollmentStatusOptions}
+            />
           </label>
 
           <label className="block space-y-2">
             <span className="text-sm font-semibold text-[var(--ink-900)]">Class</span>
-            <select
+            <AppSelect
               value={classFilter}
-              onChange={(event) => setClassFilter(event.target.value)}
-              className="form-input"
-            >
-              <option value="ALL">All classes</option>
-              {classes.map((schoolClass) => (
-                <option key={schoolClass.id} value={schoolClass.id}>
-                  {schoolClass.section ? `${schoolClass.name} ${schoolClass.section}` : schoolClass.name}
-                </option>
-              ))}
-            </select>
+              onChange={setClassFilter}
+              options={classFilterOptions}
+            />
           </label>
 
           <div className="flex items-end">
@@ -1019,35 +1034,20 @@ export function StudentsPage() {
 
           <label className="block space-y-2">
             <span className="text-sm font-semibold text-[var(--ink-900)]">Preferred class</span>
-            <select
+            <AppSelect
               value={admissionForm.schoolClassId}
-              onChange={(event) => updateAdmission("schoolClassId", event.target.value)}
-              className="form-input"
-            >
-              <option value="">No class yet</option>
-              {classes.map((schoolClass) => (
-                <option key={schoolClass.id} value={schoolClass.id}>
-                  {schoolClass.section ? `${schoolClass.name} ${schoolClass.section}` : schoolClass.name}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => updateAdmission("schoolClassId", value)}
+              options={preferredClassOptions}
+            />
           </label>
 
           <label className="block space-y-2">
             <span className="text-sm font-semibold text-[var(--ink-900)]">Academic year</span>
-            <select
+            <AppSelect
               value={admissionForm.academicYearId}
-              onChange={(event) => updateAdmission("academicYearId", event.target.value)}
-              className="form-input"
-            >
-              <option value="">Select academic year</option>
-              {academicYears.map((year) => (
-                <option key={year.id} value={year.id}>
-                  {year.name}
-                  {year.id === activeAcademicYear?.id ? " (Active)" : ""}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => updateAdmission("academicYearId", value)}
+              options={academicYearOptions}
+            />
           </label>
 
           <label className="block space-y-2">
@@ -1072,19 +1072,11 @@ export function StudentsPage() {
 
           <label className="block space-y-2 md:col-span-2">
             <span className="text-sm font-semibold text-[var(--ink-900)]">Enrollment status</span>
-            <select
+            <AppSelect
               value={admissionForm.enrollmentStatus}
-              onChange={(event) => updateAdmission("enrollmentStatus", event.target.value)}
-              className="form-input"
-            >
-              {enrollmentStatusOptions
-                .filter((option) => option.value !== "ALL")
-                .map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-            </select>
+              onChange={(value) => updateAdmission("enrollmentStatus", value)}
+              options={enrollmentCreateOptions}
+            />
           </label>
         </div>
       </ModalShell>

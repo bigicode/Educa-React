@@ -9,6 +9,7 @@ import {
   GraduationCap,
   NotebookPen,
 } from "lucide-react";
+import { AppSelect } from "../../components/ui/AppSelect";
 import { ModalShell } from "../../components/ui/ModalShell";
 import { CardSkeleton, SkeletonBlock, SkeletonText, TableSkeleton } from "../../components/ui/Skeleton";
 import {
@@ -369,31 +370,25 @@ export function AcademicsPage() {
 
           <label className="block space-y-2">
             <span className="text-sm font-semibold text-[var(--ink-900)]">Class</span>
-            <select
+            <AppSelect
               value={assessmentForm.className}
-              onChange={(event) => updateAssessment("className", event.target.value)}
-              className="form-input"
-            >
-              <option>Grade 7</option>
-              <option>Grade 8</option>
-              <option>Grade 9</option>
-              <option>Grade 10</option>
-              <option>Grade 11</option>
-            </select>
+              onChange={(value) => updateAssessment("className", value)}
+              options={["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11"]}
+            />
           </label>
 
           <label className="block space-y-2">
             <span className="text-sm font-semibold text-[var(--ink-900)]">Owner</span>
-            <select
+            <AppSelect
               value={assessmentForm.owner}
-              onChange={(event) => updateAssessment("owner", event.target.value)}
-              className="form-input"
-            >
-              <option>Academic Office</option>
-              <option>Mathematics Department</option>
-              <option>Science Department</option>
-              <option>Languages Department</option>
-            </select>
+              onChange={(value) => updateAssessment("owner", value)}
+              options={[
+                "Academic Office",
+                "Mathematics Department",
+                "Science Department",
+                "Languages Department",
+              ]}
+            />
           </label>
 
           <label className="block space-y-2 md:col-span-2">

@@ -24,6 +24,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { AppSelect } from "../../components/ui/AppSelect";
 import { ModalShell } from "../../components/ui/ModalShell";
 import { CardSkeleton, SkeletonBlock, SkeletonText, TableSkeleton } from "../../components/ui/Skeleton";
 import {
@@ -606,16 +607,11 @@ export function DashboardPage() {
         <div className="grid gap-5">
           <label className="block space-y-2">
             <span className="text-sm font-semibold text-[var(--ink-900)]">Audience</span>
-            <select
+            <AppSelect
               value={noticeForm.audience}
-              onChange={(event) => updateNotice("audience", event.target.value)}
-              className="form-input"
-            >
-              <option>All School</option>
-              <option>Teachers</option>
-              <option>Parents</option>
-              <option>Students</option>
-            </select>
+              onChange={(value) => updateNotice("audience", value)}
+              options={["All School", "Teachers", "Parents", "Students"]}
+            />
           </label>
 
           <label className="block space-y-2">
