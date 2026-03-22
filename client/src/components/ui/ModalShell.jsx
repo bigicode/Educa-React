@@ -3,7 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { X } from "lucide-react";
 import { motionEase } from "../../lib/motion";
 
-export function ModalShell({ open, onClose, title, description, children, footer }) {
+export function ModalShell({ open, onClose, title, description, children, footer, size = "default" }) {
   const reduceMotion = useReducedMotion();
 
   useEffect(() => {
@@ -36,7 +36,7 @@ export function ModalShell({ open, onClose, title, description, children, footer
           onClick={onClose}
         >
           <motion.div
-            className="modal-panel"
+            className={`modal-panel modal-panel--${size}`}
             initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 24, scale: 0.98 }}
             animate={{
               opacity: 1,
@@ -57,10 +57,10 @@ export function ModalShell({ open, onClose, title, description, children, footer
             }}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex items-start justify-between gap-4 border-b border-[rgba(8,39,95,0.08)] px-6 py-5">
+            <div className="modal-panel__header">
               <div>
                 <p className="eyebrow">Workspace Action</p>
-                <h2 className="mt-2 font-display text-2xl font-bold text-[var(--ink-900)]">
+                <h2 className="mt-2 font-display text-xl font-bold text-[var(--ink-900)] md:text-2xl">
                   {title}
                 </h2>
                 {description ? (
@@ -79,10 +79,10 @@ export function ModalShell({ open, onClose, title, description, children, footer
               </button>
             </div>
 
-            <div className="px-6 py-6">{children}</div>
+            <div className="modal-panel__body">{children}</div>
 
             {footer ? (
-              <div className="flex flex-wrap items-center justify-end gap-3 border-t border-[rgba(8,39,95,0.08)] px-6 py-5">
+              <div className="modal-panel__footer">
                 {footer}
               </div>
             ) : null}
