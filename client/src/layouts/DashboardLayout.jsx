@@ -10,8 +10,8 @@ import { PageTransition } from "../components/ux/PageTransition";
 import {
   globalSearchEntities,
   headerMessages as initialHeaderMessages,
-  userProfile,
 } from "../data/schoolData";
+import { useAuth } from "../features/auth/useAuth";
 
 function getInitialSidebarState() {
   if (typeof window === "undefined") {
@@ -39,6 +39,7 @@ export function DashboardLayout() {
   const outlet = useOutlet();
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(getInitialSidebarState);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -163,6 +164,19 @@ export function DashboardLayout() {
     [messages],
   );
 
+  const dashboardUser = useMemo(
+    () => ({
+      initials: user?.initials || "US",
+      name: user?.name || "Unknown User",
+      role: user?.role || "User",
+      email: user?.email || "No email",
+      academicYear: user?.academicYear || "Not configured",
+      isActive: user?.isActive ?? false,
+      id: user?.id || "Unavailable",
+    }),
+    [user],
+  );
+
   function toggleSidebar() {
     if (typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches) {
       setIsSidebarCollapsed((current) => !current);
@@ -202,6 +216,7 @@ export function DashboardLayout() {
 
   function handleLogout() {
     setIsUserMenuOpen(false);
+    logout();
     navigate("/login");
     toast.success("You have been signed out.");
   }
@@ -254,7 +269,7 @@ export function DashboardLayout() {
               setIsSettingsOpen(true);
             }}
             onLogout={handleLogout}
-            user={userProfile}
+            user={dashboardUser}
           />
 
           <main className="min-w-0 pb-8 pt-5">
@@ -278,28 +293,34 @@ export function DashboardLayout() {
           <div className="subtle-card rounded-[24px] p-5">
             <p className="text-sm text-[var(--ink-500)]">Name</p>
             <p className="mt-2 font-display text-2xl font-semibold text-[var(--ink-900)]">
-              {userProfile.name}
+              {dashboardUser.name}
             </p>
           </div>
           <div className="subtle-card rounded-[24px] p-5">
             <p className="text-sm text-[var(--ink-500)]">Role</p>
             <p className="mt-2 font-display text-2xl font-semibold text-[var(--ink-900)]">
-              {userProfile.role}
+              {dashboardUser.role}
             </p>
           </div>
           <div className="subtle-card rounded-[24px] p-5 md:col-span-2">
             <p className="text-sm text-[var(--ink-500)]">Email</p>
-            <p className="mt-2 text-base font-semibold text-[var(--ink-900)]">{userProfile.email}</p>
+            <p className="mt-2 text-base font-semibold text-[var(--ink-900)]">{dashboardUser.email}</p>
           </div>
           <div className="subtle-card rounded-[24px] p-5">
-            <p className="text-sm text-[var(--ink-500)]">Campus</p>
-            <p className="mt-2 text-base font-semibold text-[var(--ink-900)]">{userProfile.campus}</p>
+            <p className="text-sm text-[var(--ink-500)]">Account Status</p>
+            <p className="mt-2 text-base font-semibold text-[var(--ink-900)]">
+              {dashboardUser.isActive ? "Active" : "Inactive"}
+            </p>
           </div>
           <div className="subtle-card rounded-[24px] p-5">
             <p className="text-sm text-[var(--ink-500)]">Academic Year</p>
             <p className="mt-2 text-base font-semibold text-[var(--ink-900)]">
-              {userProfile.academicYear}
+              {dashboardUser.academicYear}
             </p>
+          </div>
+          <div className="subtle-card rounded-[24px] p-5 md:col-span-2">
+            <p className="text-sm text-[var(--ink-500)]">User ID</p>
+            <p className="mt-2 text-base font-semibold text-[var(--ink-900)]">{dashboardUser.id}</p>
           </div>
         </div>
       </ModalShell>

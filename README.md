@@ -44,7 +44,6 @@ server/
 |   |-- routes/
 |   `-- utils/
 ```
-
 ## Next Steps
 
 1. Install the dependencies.
@@ -52,4 +51,3 @@ server/
 3. Configure the database in `server/.env`.
 4. Run Prisma generate and create the first migration.
 5. Start building the auth flow and dashboard UI.
-

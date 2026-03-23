@@ -88,9 +88,7 @@ export function DashboardTopbar({
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--ink-500)]">
               {currentPage.label}
             </p>
-            <h2 className="truncate font-display text-xl font-bold text-[var(--ink-900)] lg:text-2xl">
-              {currentPage.title}
-            </h2>
+            
           </div>
         </div>
 

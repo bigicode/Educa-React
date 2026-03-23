@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { App } from "./App";
 import { AssessmentsPage } from "../pages/assessments/AssessmentsPage";
+import { PublicOnlyRoute, RequireAuth } from "../features/auth/AuthGuards";
 import { AuthLayout } from "../layouts/AuthLayout";
 import { CalendarPage } from "../pages/calendar/CalendarPage";
 import { CommunicationPage } from "../pages/communication/CommunicationPage";
@@ -23,53 +24,63 @@ export const router = createBrowserRouter([
         element: <Navigate to="/dashboard" replace />,
       },
       {
-        element: <AuthLayout />,
+        element: <PublicOnlyRoute />,
         children: [
           {
-            path: "login",
-            element: <LoginPage />,
+            element: <AuthLayout />,
+            children: [
+              {
+                path: "login",
+                element: <LoginPage />,
+              },
+            ],
           },
         ],
       },
       {
-        path: "dashboard",
-        element: <DashboardLayout />,
+        element: <RequireAuth />,
         children: [
           {
-            index: true,
-            element: <DashboardPage />,
-          },
-          {
-            path: "students",
-            element: <StudentsPage />,
-          },
-          {
-            path: "academics",
-            element: <AcademicsPage />,
-          },
-          {
-            path: "teachers",
-            element: <TeachersPage />,
-          },
-          {
-            path: "attendance",
-            element: <AttendancePage />,
-          },
-          {
-            path: "assessments",
-            element: <AssessmentsPage />,
-          },
-          {
-            path: "calendar",
-            element: <CalendarPage />,
-          },
-          {
-            path: "communication",
-            element: <CommunicationPage />,
-          },
-          {
-            path: "reports",
-            element: <ReportsPage />,
+            path: "dashboard",
+            element: <DashboardLayout />,
+            children: [
+              {
+                index: true,
+                element: <DashboardPage />,
+              },
+              {
+                path: "students",
+                element: <StudentsPage />,
+              },
+              {
+                path: "academics",
+                element: <AcademicsPage />,
+              },
+              {
+                path: "teachers",
+                element: <TeachersPage />,
+              },
+              {
+                path: "attendance",
+                element: <AttendancePage />,
+              },
+              {
+                path: "assessments",
+                element: <AssessmentsPage />,
+              },
+              {
+                path: "calendar",
+                element: <CalendarPage />,
+              },
+              {
+                path: "communication",
+                element: <CommunicationPage />,
+              },
+              {
+                path: "reports",
+                element: <ReportsPage />,
+              },
+            ],
           },
         ],
       },

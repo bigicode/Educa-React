@@ -6,7 +6,12 @@ import {
   ShieldCheck,
   UsersRound,
 } from "lucide-react";
+import { useState } from "react";
+import toast from "react-hot-toast";
+import { useLocation, useNavigate } from "react-router-dom";
 import { BrandMark } from "../../components/BrandMark";
+import { getAuthErrorMessage } from "../../features/auth/api";
+import { useAuth } from "../../features/auth/useAuth";
 
 const featureCards = [
   {
@@ -27,6 +32,55 @@ const featureCards = [
 ];
 
 export function LoginPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { login } = useAuth();
+  const [credentials, setCredentials] = useState({
+    email: "admin@educa.school",
+    password: "Admin@12345",
+    remember: true,
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const redirectTo = location.state?.from || "/dashboard";
+
+  function updateField(field, value) {
+    setCredentials((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+
+    if (!credentials.email.trim() || !credentials.password.trim()) {
+      toast.error("Enter both your email address and password.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const session = await login(
+        {
+          email: credentials.email.trim(),
+          password: credentials.password,
+        },
+        {
+          remember: credentials.remember,
+        },
+      );
+
+      toast.success(`Welcome back, ${session.user.firstName}.`);
+      navigate(redirectTo, { replace: true });
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error, "Unable to sign in right now."));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <section className="surface-card w-full max-w-6xl overflow-hidden rounded-[36px]">
       <div className="grid lg:grid-cols-[1.05fr_0.95fr]">
@@ -88,7 +142,7 @@ export function LoginPage() {
             </p>
           </div>
 
-          <form className="space-y-5">
+          <form className="space-y-5" onSubmit={handleSubmit}>
             <label className="block space-y-2">
               <span className="text-sm font-semibold text-[var(--ink-900)]">Email address</span>
               <div className="relative">
@@ -98,8 +152,11 @@ export function LoginPage() {
                 />
                 <input
                   type="email"
+                  value={credentials.email}
+                  onChange={(event) => updateField("email", event.target.value)}
                   className="form-input pl-11"
                   placeholder="admin@educa.school"
+                  autoComplete="email"
                 />
               </div>
             </label>
@@ -113,15 +170,23 @@ export function LoginPage() {
                 />
                 <input
                   type="password"
+                  value={credentials.password}
+                  onChange={(event) => updateField("password", event.target.value)}
                   className="form-input pl-11"
                   placeholder="Enter your password"
+                  autoComplete="current-password"
                 />
               </div>
             </label>
 
             <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
               <label className="inline-flex items-center gap-3 text-sm text-[var(--ink-700)]">
-                <input type="checkbox" className="h-4 w-4 rounded border-slate-300" />
+                <input
+                  type="checkbox"
+                  checked={credentials.remember}
+                  onChange={(event) => updateField("remember", event.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300"
+                />
                 <span>Keep me signed in</span>
               </label>
               <button
@@ -133,10 +198,11 @@ export function LoginPage() {
             </div>
 
             <button
-              type="button"
+              type="submit"
               className="primary-button inline-flex w-full items-center justify-center gap-2"
+              disabled={isSubmitting}
             >
-              <span>Sign in</span>
+              <span>{isSubmitting ? "Signing in..." : "Sign in"}</span>
               <ArrowRight size={18} />
             </button>
 
@@ -146,10 +212,13 @@ export function LoginPage() {
           </form>
 
           <div className="mt-8 rounded-[24px] border border-[rgba(8,39,95,0.08)] bg-[rgba(255,250,205,0.44)] p-5">
-            <p className="text-sm font-semibold text-[var(--brand-blue-900)]">Theme note</p>
+            <p className="text-sm font-semibold text-[var(--brand-blue-900)]">Local admin access</p>
             <p className="mt-2 text-sm leading-6 text-[var(--ink-700)]">
-              Cream is used as a soft academic accent, not a loud background color. That keeps
-              the interface polished and readable while still honoring your brand choice.
+              Use the imported starter account while we build the rest of the auth flows:
+              <br />
+              <span className="font-semibold">admin@educa.school</span>
+              <span className="px-2">/</span>
+              <span className="font-semibold">Admin@12345</span>
             </p>
           </div>
         </div>
