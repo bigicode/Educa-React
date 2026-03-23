@@ -13,6 +13,7 @@ CREATE DATABASE IF NOT EXISTS `educa_school`
 
 USE `educa_school`;
 
+DROP TABLE IF EXISTS `Announcement`;
 DROP TABLE IF EXISTS `GradeEntry`;
 DROP TABLE IF EXISTS `Assessment`;
 DROP TABLE IF EXISTS `AttendanceRecord`;
@@ -39,6 +40,22 @@ CREATE TABLE `User` (
   `updatedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   UNIQUE KEY `User_email_key` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `Announcement` (
+  `id` VARCHAR(191) NOT NULL,
+  `title` VARCHAR(191) NOT NULL,
+  `body` TEXT NOT NULL,
+  `audience` ENUM('ALL_SCHOOL', 'STAFF', 'TEACHERS', 'STUDENTS', 'PARENTS') NOT NULL,
+  `status` ENUM('DRAFT', 'PUBLISHED') NOT NULL DEFAULT 'DRAFT',
+  `createdById` VARCHAR(191) NOT NULL,
+  `publishedAt` DATETIME(3) NULL,
+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updatedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  KEY `Announcement_status_audience_createdAt_idx` (`status`, `audience`, `createdAt`),
+  KEY `Announcement_createdById_createdAt_idx` (`createdById`, `createdAt`),
+  CONSTRAINT `Announcement_createdById_fkey` FOREIGN KEY (`createdById`) REFERENCES `User` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `Student` (
@@ -225,6 +242,11 @@ INSERT INTO `User` (`id`, `firstName`, `lastName`, `email`, `passwordHash`, `rol
   ('usr_student_001', 'Neema', 'Mollel', 'neema@educa.school', '$2b$10$TgnaJkNqEw8XJ78TeUWaMebDHjv30P7skT5dFapOIDBqCT9TEImAW', 'STUDENT', 1),
   ('usr_student_002', 'Juma', 'Kileo', 'juma@educa.school', '$2b$10$TgnaJkNqEw8XJ78TeUWaMebDHjv30P7skT5dFapOIDBqCT9TEImAW', 'STUDENT', 1),
   ('usr_student_003', 'Sofia', 'Said', 'sofia@educa.school', '$2b$10$TgnaJkNqEw8XJ78TeUWaMebDHjv30P7skT5dFapOIDBqCT9TEImAW', 'STUDENT', 1);
+
+INSERT INTO `Announcement` (`id`, `title`, `body`, `audience`, `status`, `createdById`, `publishedAt`) VALUES
+  ('ann_001', 'Term opening notice', 'Semester One will open on Monday with normal reporting times for all classes.', 'ALL_SCHOOL', 'PUBLISHED', 'usr_admin_001', '2026-03-18 07:30:00.000'),
+  ('ann_002', 'Mathematics CAT preparation', 'Grade 10B mathematics CAT revision materials are ready for learners and subject teachers.', 'TEACHERS', 'PUBLISHED', 'usr_teacher_001', '2026-03-20 16:15:00.000'),
+  ('ann_003', 'Attendance follow-up draft', 'Prepare parent outreach for classes that missed the attendance threshold in the latest register.', 'PARENTS', 'DRAFT', 'usr_admin_001', NULL);
 
 INSERT INTO `Teacher` (`id`, `userId`, `employeeCode`, `phoneNumber`, `qualification`) VALUES
   ('tea_001', 'usr_teacher_001', 'EMP-001', '+255700000101', 'B.Ed Mathematics'),

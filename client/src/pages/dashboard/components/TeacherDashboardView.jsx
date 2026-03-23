@@ -14,7 +14,8 @@ import { motion } from "motion/react";
 import { format } from "date-fns";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { getRevealMotion } from "../../../lib/motion";
-import { EmptyStateCard, formatDashboardDateLabel, getAlertToneClass, getStatusChipClass } from "./dashboardViewUtils.jsx";
+import { EmptyStateCard } from "./EmptyStateCard.jsx";
+import { formatDashboardDateLabel, getAlertToneClass, getStatusChipClass } from "./dashboardViewHelpers.js";
 
 function ChartTooltip({ active, payload, label, suffix = "" }) {
   if (!active || !payload?.length) {

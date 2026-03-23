@@ -7,6 +7,7 @@ import { academicsRouter } from "../modules/academics/academics.routes.js";
 import { assessmentsRouter } from "../modules/assessments/assessments.routes.js";
 import { attendanceRouter } from "../modules/attendance/attendance.routes.js";
 import { dashboardRouter } from "../modules/dashboard/dashboard.routes.js";
+import { communicationRouter } from "../modules/communication/communication.routes.js";
 
 const router = Router();
 
@@ -18,5 +19,6 @@ router.use("/academics", academicsRouter);
 router.use("/assessments", assessmentsRouter);
 router.use("/attendance", attendanceRouter);
 router.use("/dashboard", dashboardRouter);
+router.use("/communication", communicationRouter);
 
 export const apiRouter = router;

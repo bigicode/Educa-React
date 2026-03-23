@@ -43,18 +43,32 @@ enum AssessmentStatus {
   PUBLISHED
 }
 
+enum AnnouncementAudience {
+  ALL_SCHOOL
+  STAFF
+  TEACHERS
+  STUDENTS
+  PARENTS
+}
+
+enum AnnouncementStatus {
+  DRAFT
+  PUBLISHED
+}
+
 model User {
-  id           String    @id @default(cuid())
-  firstName    String
-  lastName     String
-  email        String    @unique
-  passwordHash String
-  role         UserRole
-  isActive     Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  student      Student?
-  teacher      Teacher?
+  id                   String         @id @default(cuid())
+  firstName            String
+  lastName             String
+  email                String         @unique
+  passwordHash         String
+  role                 UserRole
+  isActive             Boolean        @default(true)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  student              Student?
+  teacher              Teacher?
+  announcementsCreated Announcement[] @relation("AnnouncementCreator")
 }
 
 model Student {
@@ -230,6 +244,22 @@ model Assessment {
   grades         GradeEntry[]
 
   @@index([schoolClassId, subjectId])
+}
+
+model Announcement {
+  id          String               @id @default(cuid())
+  title       String
+  body        String               @db.Text
+  audience    AnnouncementAudience
+  status      AnnouncementStatus   @default(DRAFT)
+  createdById String
+  publishedAt DateTime?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  createdBy   User                 @relation("AnnouncementCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([status, audience, createdAt])
+  @@index([createdById, createdAt])
 }
 
 model GradeEntry {

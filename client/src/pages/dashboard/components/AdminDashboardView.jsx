@@ -18,7 +18,8 @@ import { format } from "date-fns";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { dashboardApprovals as approvals, dashboardSupportQueue as supportQueue } from "../../../data/schoolData";
 import { getRevealMotion } from "../../../lib/motion";
-import { EmptyStateCard, getAlertToneClass, getStatusChipClass } from "./dashboardViewUtils.jsx";
+import { EmptyStateCard } from "./EmptyStateCard.jsx";
+import { getAlertToneClass, getStatusChipClass } from "./dashboardViewHelpers.js";
 
 function ChartTooltip({ active, payload, label, suffix = "" }) {
   if (!active || !payload?.length) {
