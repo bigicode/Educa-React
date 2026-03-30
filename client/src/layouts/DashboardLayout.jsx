@@ -1,4 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { ShieldCheck } from "lucide-react";
 import { useLocation, useNavigate, useOutlet } from "react-router-dom";
@@ -7,11 +8,19 @@ import { DashboardTopbar } from "../components/navigation/DashboardTopbar";
 import { getPageMeta, layoutStorageKey } from "../components/navigation/dashboardShellConfig";
 import { ModalShell } from "../components/ui/ModalShell";
 import { PageTransition } from "../components/ux/PageTransition";
-import {
-  globalSearchEntities,
-  headerMessages as initialHeaderMessages,
-} from "../data/schoolData";
 import { useAuth } from "../features/auth/useAuth";
+import {
+  fetchNotificationsOverview,
+  getApiErrorMessage as getNotificationsApiErrorMessage,
+} from "../features/notifications/api";
+import {
+  fetchGlobalSearchResults,
+  getApiErrorMessage as getSearchApiErrorMessage,
+} from "../features/search/api";
+import {
+  persistTopbarReadState,
+  readTopbarReadState,
+} from "../features/notifications/storage";
 
 function getInitialSidebarState() {
   if (typeof window === "undefined") {
@@ -25,16 +34,6 @@ function getInitialSidebarState() {
   }
 }
 
-function matchesQuery(entity, query) {
-  const normalizedQuery = query.trim().toLowerCase();
-
-  if (!normalizedQuery) {
-    return false;
-  }
-
-  return entity.keywords.some((keyword) => keyword.toLowerCase().includes(normalizedQuery));
-}
-
 export function DashboardLayout() {
   const outlet = useOutlet();
   const location = useLocation();
@@ -45,17 +44,34 @@ export function DashboardLayout() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isMessagesOpen, setIsMessagesOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isTopbarVisible, setIsTopbarVisible] = useState(true);
-  const [messages, setMessages] = useState(initialHeaderMessages);
+  const [readStateByUser, setReadStateByUser] = useState({});
   const searchInputRef = useRef(null);
   const searchContainerRef = useRef(null);
   const messagesRef = useRef(null);
+  const notificationsRef = useRef(null);
   const userMenuRef = useRef(null);
   const lastScrollYRef = useRef(0);
   const deferredQuery = useDeferredValue(searchQuery);
+  const persistedReadState = useMemo(() => readTopbarReadState(user?.id), [user?.id]);
+  const activeReadState = readStateByUser[user?.id] || persistedReadState;
+
+  const topbarOverviewQuery = useQuery({
+    queryKey: ["notifications", "overview"],
+    queryFn: fetchNotificationsOverview,
+    enabled: Boolean(user?.id),
+    staleTime: 60_000,
+  });
+  const liveSearchQuery = useQuery({
+    queryKey: ["search", "global", deferredQuery.trim()],
+    queryFn: () => fetchGlobalSearchResults(deferredQuery.trim()),
+    enabled: Boolean(user?.id && deferredQuery.trim().length >= 2),
+    staleTime: 30_000,
+  });
 
   useEffect(() => {
     try {
@@ -64,6 +80,10 @@ export function DashboardLayout() {
       // Ignore storage issues in restricted environments.
     }
   }, [isSidebarCollapsed]);
+
+  useEffect(() => {
+    persistTopbarReadState(user?.id, activeReadState);
+  }, [activeReadState, user?.id]);
 
   useEffect(() => {
     function handlePointerDown(event) {
@@ -77,6 +97,10 @@ export function DashboardLayout() {
 
       if (messagesRef.current && !messagesRef.current.contains(event.target)) {
         setIsMessagesOpen(false);
+      }
+
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target)) {
+        setIsNotificationsOpen(false);
       }
 
       if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
@@ -94,6 +118,7 @@ export function DashboardLayout() {
       if (event.key === "Escape") {
         setIsSearchOpen(false);
         setIsMessagesOpen(false);
+        setIsNotificationsOpen(false);
         setIsUserMenuOpen(false);
       }
     }
@@ -122,6 +147,7 @@ export function DashboardLayout() {
           setIsTopbarVisible(false);
           setIsSearchOpen(false);
           setIsMessagesOpen(false);
+          setIsNotificationsOpen(false);
           setIsUserMenuOpen(false);
         } else {
           setIsTopbarVisible(true);
@@ -151,17 +177,39 @@ export function DashboardLayout() {
 
   const currentPage = useMemo(() => getPageMeta(location.pathname), [location.pathname]);
 
-  const searchResults = useMemo(() => {
-    if (!deferredQuery.trim()) {
-      return [];
-    }
+  const searchResults = useMemo(
+    () => liveSearchQuery.data || [],
+    [liveSearchQuery.data],
+  );
 
-    return globalSearchEntities.filter((entity) => matchesQuery(entity, deferredQuery)).slice(0, 8);
-  }, [deferredQuery]);
+  const liveMessages = useMemo(() => {
+    const baseMessages = topbarOverviewQuery.data?.messages || [];
+    const readIds = new Set(activeReadState.messages);
+
+    return baseMessages.map((message) => ({
+      ...message,
+      unread: !readIds.has(message.id),
+    }));
+  }, [activeReadState.messages, topbarOverviewQuery.data?.messages]);
+
+  const liveNotifications = useMemo(() => {
+    const baseNotifications = topbarOverviewQuery.data?.notifications || [];
+    const readIds = new Set(activeReadState.notifications);
+
+    return baseNotifications.map((notification) => ({
+      ...notification,
+      unread: !readIds.has(notification.id),
+    }));
+  }, [activeReadState.notifications, topbarOverviewQuery.data?.notifications]);
 
   const unreadMessagesCount = useMemo(
-    () => messages.filter((message) => message.unread).length,
-    [messages],
+    () => liveMessages.filter((message) => message.unread).length,
+    [liveMessages],
+  );
+
+  const unreadNotificationsCount = useMemo(
+    () => liveNotifications.filter((notification) => notification.unread).length,
+    [liveNotifications],
   );
 
   const dashboardUser = useMemo(
@@ -176,6 +224,41 @@ export function DashboardLayout() {
     }),
     [user],
   );
+
+  const topbarFeedError = useMemo(
+    () =>
+      getNotificationsApiErrorMessage(
+        topbarOverviewQuery.error,
+        "Could not load the live top bar updates right now.",
+      ),
+    [topbarOverviewQuery.error],
+  );
+  const searchError = useMemo(
+    () =>
+      getSearchApiErrorMessage(
+        liveSearchQuery.error,
+        "Could not load the global search results right now.",
+      ),
+    [liveSearchQuery.error],
+  );
+
+  function markItemsAsRead(group, itemIds) {
+    if (!user?.id) {
+      return;
+    }
+
+    setReadStateByUser((current) => {
+      const currentUserState = current[user.id] || persistedReadState;
+
+      return {
+        ...current,
+        [user.id]: {
+          ...currentUserState,
+          [group]: Array.from(new Set([...(currentUserState[group] || []), ...itemIds])),
+        },
+      };
+    });
+  }
 
   function toggleSidebar() {
     if (typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches) {
@@ -198,20 +281,34 @@ export function DashboardLayout() {
     toast.success(`Opened ${entity.title}`);
   }
 
-  function handleMessageOpen(messageId) {
-    setMessages((current) =>
-      current.map((message) =>
-        message.id === messageId ? { ...message, unread: false } : message,
-      ),
-    );
+  function handleMessageOpen(message) {
+    markItemsAsRead("messages", [message.id]);
     setIsMessagesOpen(false);
-    navigate("/dashboard");
-    toast.success("Message thread opened.");
+    navigate(message.route || "/dashboard/communication");
+    toast.success("Communication update opened.");
   }
 
   function markAllMessagesRead() {
-    setMessages((current) => current.map((message) => ({ ...message, unread: false })));
+    markItemsAsRead(
+      "messages",
+      liveMessages.map((message) => message.id),
+    );
     toast.success("All messages marked as read.");
+  }
+
+  function handleNotificationOpen(notification) {
+    markItemsAsRead("notifications", [notification.id]);
+    setIsNotificationsOpen(false);
+    navigate(notification.route || "/dashboard");
+    toast.success("Operational alert opened.");
+  }
+
+  function markAllNotificationsRead() {
+    markItemsAsRead(
+      "notifications",
+      liveNotifications.map((notification) => notification.id),
+    );
+    toast.success("All notifications marked as read.");
   }
 
   function handleLogout() {
@@ -243,22 +340,41 @@ export function DashboardLayout() {
             isSearchOpen={isSearchOpen}
             onSearchOpen={() => setIsSearchOpen(true)}
             searchResults={searchResults}
+            searchLoading={liveSearchQuery.isPending && deferredQuery.trim().length >= 2}
+            searchError={liveSearchQuery.isError ? searchError : ""}
             onSearchSelect={handleSearchSelect}
             messagesRef={messagesRef}
             unreadMessagesCount={unreadMessagesCount}
-            messages={messages}
+            messages={liveMessages}
+            messagesLoading={topbarOverviewQuery.isPending && !topbarOverviewQuery.data}
+            messagesError={topbarOverviewQuery.isError ? topbarFeedError : ""}
             isMessagesOpen={isMessagesOpen}
             onToggleMessages={() => {
               setIsMessagesOpen((current) => !current);
+              setIsNotificationsOpen(false);
               setIsUserMenuOpen(false);
             }}
             onMarkAllMessagesRead={markAllMessagesRead}
             onMessageOpen={handleMessageOpen}
+            notificationsRef={notificationsRef}
+            unreadNotificationsCount={unreadNotificationsCount}
+            notifications={liveNotifications}
+            notificationsLoading={topbarOverviewQuery.isPending && !topbarOverviewQuery.data}
+            notificationsError={topbarOverviewQuery.isError ? topbarFeedError : ""}
+            isNotificationsOpen={isNotificationsOpen}
+            onToggleNotifications={() => {
+              setIsNotificationsOpen((current) => !current);
+              setIsMessagesOpen(false);
+              setIsUserMenuOpen(false);
+            }}
+            onMarkAllNotificationsRead={markAllNotificationsRead}
+            onNotificationOpen={handleNotificationOpen}
             userMenuRef={userMenuRef}
             isUserMenuOpen={isUserMenuOpen}
             onToggleUserMenu={() => {
               setIsUserMenuOpen((current) => !current);
               setIsMessagesOpen(false);
+              setIsNotificationsOpen(false);
             }}
             onOpenProfile={() => {
               setIsUserMenuOpen(false);

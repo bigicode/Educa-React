@@ -26,14 +26,27 @@ export function DashboardTopbar({
   isSearchOpen,
   onSearchOpen,
   searchResults,
+  searchLoading,
+  searchError,
   onSearchSelect,
   messagesRef,
   unreadMessagesCount,
   messages,
+  messagesLoading,
+  messagesError,
   isMessagesOpen,
   onToggleMessages,
   onMarkAllMessagesRead,
   onMessageOpen,
+  notificationsRef,
+  unreadNotificationsCount,
+  notifications,
+  notificationsLoading,
+  notificationsError,
+  isNotificationsOpen,
+  onToggleNotifications,
+  onMarkAllNotificationsRead,
+  onNotificationOpen,
   userMenuRef,
   isUserMenuOpen,
   onToggleUserMenu,
@@ -43,6 +56,12 @@ export function DashboardTopbar({
   user,
 }) {
   const reduceMotion = useReducedMotion();
+  const toneClassMap = {
+    blue: "status-chip--blue",
+    cream: "status-chip--cream",
+    green: "status-chip--green",
+    rose: "status-chip--rose",
+  };
   const headerMotion = reduceMotion
     ? {
         initial: { opacity: 0 },
@@ -88,7 +107,6 @@ export function DashboardTopbar({
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--ink-500)]">
               {currentPage.label}
             </p>
-            
           </div>
         </div>
 
@@ -111,7 +129,7 @@ export function DashboardTopbar({
           </label>
 
           <AnimatePresence>
-            {isSearchOpen && (searchQuery.trim() || searchResults.length > 0) ? (
+            {isSearchOpen && searchQuery.trim() ? (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -124,7 +142,11 @@ export function DashboardTopbar({
                       Global Search
                     </p>
                     <p className="mt-1 text-sm text-[var(--ink-700)]">
-                      {searchResults.length
+                      {searchQuery.trim().length < 2
+                        ? "Type at least 2 characters to search the live system"
+                        : searchLoading
+                          ? "Searching live students, teachers, assessments, and notices..."
+                          : searchResults.length
                         ? `${searchResults.length} matching entities`
                         : "No matching entities"}
                     </p>
@@ -132,7 +154,17 @@ export function DashboardTopbar({
                 </div>
 
                 <div className="topbar-dropdown__list max-h-[24rem] overflow-y-auto">
-                  {searchResults.length ? (
+                  {searchQuery.trim().length < 2 ? (
+                    <div className="px-5 py-6 text-sm leading-7 text-[var(--ink-700)]">
+                      Keep typing to search real students, teachers, classes, assessments, and announcements.
+                    </div>
+                  ) : searchLoading ? (
+                    <div className="px-5 py-6 text-sm leading-7 text-[var(--ink-700)]">
+                      Loading live search results...
+                    </div>
+                  ) : searchError ? (
+                    <div className="px-5 py-6 text-sm leading-7 text-[var(--ink-700)]">{searchError}</div>
+                  ) : searchResults.length ? (
                     searchResults.map((result) => (
                       <button
                         key={result.id}
@@ -149,7 +181,7 @@ export function DashboardTopbar({
                     ))
                   ) : (
                     <div className="px-5 py-6 text-sm text-[var(--ink-700)]">
-                      Try searching for a student, approval, subject, or assessment.
+                      Try searching for a student, teacher, subject, class, assessment, or announcement.
                     </div>
                   )}
                 </div>
@@ -179,26 +211,33 @@ export function DashboardTopbar({
                   className="topbar-dropdown absolute right-0 top-[calc(100%+0.8rem)] z-[70] w-[min(92vw,24rem)]"
                 >
                   <div className="topbar-dropdown__header">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--brand-blue-700)]">
-                        Messages
-                      </p>
-                      <p className="mt-1 text-sm text-[var(--ink-700)]">
-                        {unreadMessagesCount} unread conversations
-                      </p>
-                    </div>
-                    <button type="button" className="chip-button" onClick={onMarkAllMessagesRead}>
-                      Mark all read
-                    </button>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--brand-blue-700)]">
+                      Messages
+                    </p>
+                    <p className="mt-1 text-sm text-[var(--ink-700)]">
+                        {unreadMessagesCount} unread updates
+                    </p>
                   </div>
+                  <button type="button" className="chip-button" onClick={onMarkAllMessagesRead}>
+                    Mark all read
+                  </button>
+                </div>
 
-                  <div className="topbar-dropdown__list">
-                    {messages.map((message) => (
+                <div className="topbar-dropdown__list">
+                  {messagesLoading ? (
+                    <div className="px-5 py-6 text-sm leading-7 text-[var(--ink-700)]">
+                      Loading live communication updates...
+                    </div>
+                  ) : messagesError ? (
+                    <div className="px-5 py-6 text-sm leading-7 text-[var(--ink-700)]">{messagesError}</div>
+                  ) : messages.length ? (
+                    messages.map((message) => (
                       <button
                         key={message.id}
                         type="button"
                         className="topbar-dropdown-item"
-                        onClick={() => onMessageOpen(message.id)}
+                        onClick={() => onMessageOpen(message)}
                       >
                         <div className="topbar-dropdown-item__meta">
                           <span className="font-display text-base font-semibold text-[var(--ink-900)]">
@@ -214,18 +253,100 @@ export function DashboardTopbar({
                         <p className="mt-1 text-sm leading-6 text-[var(--ink-700)]">
                           {message.preview}
                         </p>
-                        {message.unread ? <span className="message-unread-dot" /> : null}
+                        <div className="mt-3 flex items-center justify-between gap-3">
+                          <span className={`status-chip ${toneClassMap[message.tone] || "status-chip--blue"}`}>
+                            {message.kind}
+                          </span>
+                          {message.unread ? <span className="message-unread-dot" /> : null}
+                        </div>
                       </button>
-                    ))}
+                    ))
+                  ) : (
+                    <div className="px-5 py-6 text-sm leading-7 text-[var(--ink-700)]">
+                      No live communication updates are waiting right now.
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+          </div>
+
+          <div ref={notificationsRef} className="relative">
+            <button
+              type="button"
+              className="topbar-icon-button relative h-12 w-12"
+              aria-label="Notifications"
+              onClick={onToggleNotifications}
+            >
+              <Bell size={17} />
+              {unreadNotificationsCount ? <span className="topbar-badge">{unreadNotificationsCount}</span> : null}
+            </button>
+
+            <AnimatePresence>
+              {isNotificationsOpen ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 6 }}
+                  className="topbar-dropdown absolute right-0 top-[calc(100%+0.8rem)] z-[70] w-[min(92vw,25rem)]"
+                >
+                  <div className="topbar-dropdown__header">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--brand-blue-700)]">
+                        Alerts
+                      </p>
+                      <p className="mt-1 text-sm text-[var(--ink-700)]">
+                        {unreadNotificationsCount} unread operations alerts
+                      </p>
+                    </div>
+                    <button type="button" className="chip-button" onClick={onMarkAllNotificationsRead}>
+                      Mark all read
+                    </button>
+                  </div>
+
+                  <div className="topbar-dropdown__list">
+                    {notificationsLoading ? (
+                      <div className="px-5 py-6 text-sm leading-7 text-[var(--ink-700)]">
+                        Loading live operational alerts...
+                      </div>
+                    ) : notificationsError ? (
+                      <div className="px-5 py-6 text-sm leading-7 text-[var(--ink-700)]">{notificationsError}</div>
+                    ) : notifications.length ? (
+                      notifications.map((notification) => (
+                        <button
+                          key={notification.id}
+                          type="button"
+                          className="topbar-dropdown-item"
+                          onClick={() => onNotificationOpen(notification)}
+                        >
+                          <div className="topbar-dropdown-item__meta">
+                            <span className={`status-chip ${toneClassMap[notification.tone] || "status-chip--blue"}`}>
+                              {notification.category}
+                            </span>
+                            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--ink-500)]">
+                              {notification.time}
+                            </span>
+                          </div>
+                          <p className="mt-3 text-sm font-semibold text-[var(--ink-900)]">
+                            {notification.title}
+                          </p>
+                          <p className="mt-1 text-sm leading-6 text-[var(--ink-700)]">
+                            {notification.detail}
+                          </p>
+                          {notification.unread ? <span className="message-unread-dot" /> : null}
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-5 py-6 text-sm leading-7 text-[var(--ink-700)]">
+                        No operational alerts are waiting right now.
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               ) : null}
             </AnimatePresence>
           </div>
-
-          <button type="button" className="topbar-icon-button h-12 w-12" aria-label="Notifications">
-            <Bell size={17} />
-          </button>
 
           <div ref={userMenuRef} className="relative">
             <button type="button" className="user-summary" onClick={onToggleUserMenu}>
