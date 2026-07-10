@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev --name init",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "build": "prisma generate"
   },
   "dependencies": {
     "@prisma/adapter-mariadb": "^7.5.0",
@@ -33,6 +34,5 @@
     "eslint": "^10.1.0",
     "globals": "^17.4.0",
     "nodemon": "^3.1.14"
-    
   }
 }
