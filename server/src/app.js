@@ -13,8 +13,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: env.CLIENT_URL,
-    credentials: true,
+    origin: [env.CLIENT_URL, "https://educa-react.vercel.app"]
   }),
 );
 
