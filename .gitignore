@@ -13,4 +13,4 @@ server/node_modules/
 server/generated/
 server/prisma/migrations/
 server/.env
-
+docs
